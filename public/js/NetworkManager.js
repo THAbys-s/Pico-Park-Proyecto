@@ -1,25 +1,23 @@
 class NetworkManager {
-  constructor(playerManager) {
-    this.socket = io();
-    this.playerManager = playerManager;
+    constructor(playerManager, mapSystem) {
+        this.socket = io({ transports: ["websocket"] });
+        this.inputs = { left: false, right: false, jump: false };
 
-    console.log("NetworkManager iniciado");
+        this.socket.on("state:update", (state) => {
+            playerManager.setState(state.players);
+            mapSystem.setEntities(state.entities);
+        });
 
-    this.socket.on("connect", () => {
-      console.log("Conectado al servidor:", this.socket.id);
-    });
+        // Captura de teclado local (para pruebas)
+        window.addEventListener("keydown", (e) => this.updateInput(e.key, true));
+        window.addEventListener("keyup", (e) => this.updateInput(e.key, false));
+    }
 
-    this.socket.on("players:update", (players) => {
-      Object.entries(players).forEach(([id, input]) => {
-
-        // crear jugador si no existe
-        if (!this.playerManager.players[id]) {
-          this.playerManager.addPlayer(id, 100, 100);
-        }
-
-        // actualizar inputs
-        this.playerManager.players[id].input = input;
-      });
-    });
-  }
+    updateInput(key, value) {
+        if (key === "ArrowLeft" || key === "a") this.inputs.left = value;
+        if (key === "ArrowRight" || key === "d") this.inputs.right = value;
+        if (key === " " || key === "w") this.inputs.jump = value;
+        
+        this.socket.emit("input:update", this.inputs);
+    }
 }

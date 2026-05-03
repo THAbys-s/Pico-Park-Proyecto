@@ -1,50 +1,37 @@
 class PlayerManager {
-  constructor(physics) {
-    this.engine = physics.engine;
-    this.players = {};
-  }
+    constructor() {
+        this.players = {};      // Posiciones visuales
+        this.serverState = {};  // Datos crudos del server
+        this.sprites = new SpriteSystem();
+    }
 
-  addPlayer(id, x, y) {
-    const body = Matter.Bodies.rectangle(x, y, 40, 40, {
-      friction: 0.1,
-      restitution: 0
-    });
+    setState(data) {
+        this.serverState = data;
+        // Si entra alguien nuevo, lo creamos de inmediato
+        for (const id in data) {
+            if (!this.players[id]) {
+                this.players[id] = { ...data[id] };
+            }
+        }
+        // Borrar desconectados
+        for (const id in this.players) {
+            if (!data[id]) delete this.players[id];
+        }
+    }
 
-    Matter.World.add(this.engine.world, body);
+    update() {
+        for (const id in this.players) {
+            if (this.serverState[id]) {
+                // Suavizado (Lerp)
+                this.players[id].x += (this.serverState[id].x - this.players[id].x) * 0.3;
+                this.players[id].y += (this.serverState[id].y - this.players[id].y) * 0.3;
+            }
+        }
+    }
 
-    this.players[id] = {
-      id,
-      body,
-      input: { left: false, right: false, jump: false }
-    };
-  }
-
-  update() {
-    Object.values(this.players).forEach(player => {
-      const { body, input } = player;
-
-      if (input.left) {
-        Matter.Body.setVelocity(body, { x: -5, y: body.velocity.y });
-      }
-
-      if (input.right) {
-        Matter.Body.setVelocity(body, { x: 5, y: body.velocity.y });
-      }
-
-      if (input.jump) {
-        Matter.Body.setVelocity(body, { x: body.velocity.x, y: -10 });
-        player.input.jump = false;
-      }
-    });
-  }
-
-  render(ctx) {
-    ctx.fillStyle = "blue";
-
-    Object.values(this.players).forEach(player => {
-      const { position } = player.body;
-
-      ctx.fillRect(position.x - 20, position.y - 20, 40, 40);
-    });
-  }
+    render(ctx) {
+        for (const id in this.players) {
+            this.sprites.renderPlayer(ctx, this.players[id]);
+        }
+    }
 }
