@@ -45,6 +45,44 @@ class MainScene extends Phaser.Scene {
             jump: 'W',
             space: 'SPACE'
             });
+
+        const objetosLayer = map.getObjectLayer('objetos');
+        const llaveObj = objetosLayer.objects.find(o => o.name === 'llave');
+
+        // 2. Guardar posición original para el respawn
+        this.llaveSpawnX = llaveObj.x;
+        this.llaveSpawnY = llaveObj.y;
+
+        // 3. Crear la llave como Matter Sprite (placeholder = círculo amarillo)
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0xFFFF00);
+        graphics.fillCircle(8, 8, 8);
+        graphics.generateTexture('llave_placeholder', 16, 16);
+        graphics.destroy();
+
+        this.llave = this.matter.add.sprite(this.llaveSpawnX, this.llaveSpawnY, 'llave_placeholder');
+        this.llave.setCircle(8);         // hitbox circular
+        this.llave.setIgnoreGravity(true); // flota
+        this.llave.setStatic(false);
+        this.llave.setSensor(true);      // no colisiona físicamente, solo detecta
+
+        this.matter.world.on('collisionstart', (event) => {
+            event.pairs.forEach(pair => {
+                const { bodyA, bodyB } = pair;
+                const playerBody = this.player.body;
+                const llaveBody = this.llave.body;
+
+                if ((bodyA === playerBody && bodyB === llaveBody) ||
+                    (bodyA === llaveBody && bodyB === playerBody)) {
+                    this.agarrarLlave();
+                }
+            });
+        });
+
+        this.llaveAgarrada = false;
+        this.llaveConstraint = null;
+        this.playerPosHistory = [];
+        this.historyLength = 20; // cuántos frames atrás sigue (ajustable)
     }
 
     update() {
@@ -64,7 +102,32 @@ class MainScene extends Phaser.Scene {
         if ((this.cursors.jump.isDown || this.cursors.space.isDown) && isOnGround) {
             this.player.setVelocityY(jumpForce);
         }
-    }
+        if (this.llaveAgarrada) {
+            this.llave.setPosition(
+                this.player.x + 20, // 20px a la derecha del jugador
+                this.player.y       // misma altura
+            );
+            this.llave.setVelocity(0, 0);
+        }
+        this.playerPosHistory.push({ x: this.player.x, y: this.player.y });
+        if (this.playerPosHistory.length > this.historyLength) {
+            this.playerPosHistory.shift();
+        }
+
+        // Mover la llave a la posición antigua
+        if (this.llaveAgarrada && this.playerPosHistory.length === this.historyLength) {
+                const oldPos = this.playerPosHistory[0];
+                this.llave.setPosition(oldPos.x, oldPos.y);
+                this.llave.setVelocity(0, 0);
+            }
+        }
+
+        agarrarLlave() {
+            if (this.llaveAgarrada) return;
+            this.llaveAgarrada = true;
+            this.llave.setIgnoreGravity(true);
+            this.llave.setSensor(true);
+        }
 }
 
 const config = {
