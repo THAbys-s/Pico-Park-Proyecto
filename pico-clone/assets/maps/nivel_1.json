@@ -49,7 +49,7 @@
          "name":"colisiones",
          "objects":[
                 {
-                 "height":15.6666666666667,
+                 "height":15.6667,
                  "id":6,
                  "name":"rectangle_1",
                  "opacity":1,
@@ -80,7 +80,7 @@
                  "rotation":0,
                  "type":"",
                  "visible":true,
-                 "width":15.6666666666667,
+                 "width":15.6667,
                  "x":0.5,
                  "y":0
                 }, 
@@ -113,9 +113,32 @@
          "visible":true,
          "x":0,
          "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":3,
+         "name":"objetos",
+         "objects":[
+                {
+                 "height":16,
+                 "id":16,
+                 "name":"llave",
+                 "opacity":1,
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":16.6666666666666,
+                 "x":752,
+                 "y":272
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":3,
- "nextobjectid":16,
+ "nextlayerid":4,
+ "nextobjectid":17,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.1",
@@ -124,7 +147,7 @@
         {
          "columns":32,
          "firstgid":1,
-         "image":"..\/Documents\/GitHub\/Pico-Park-Proyecto\/pico-clone\/assets\/tilesets\/tiles.png",
+         "image":"../tilesets/tiles.png",
          "imageheight":512,
          "imagewidth":512,
          "margin":0,
