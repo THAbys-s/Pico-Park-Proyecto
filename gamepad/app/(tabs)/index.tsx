@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -17,18 +17,7 @@ export default function App() {
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
 
-  const inputState = useRef({
-    left: false,
-    right: false,
-    jump: false
-  });
-
-  // 🔌 CONECTAR (arreglado)
   const connect = () => {
-    if (socket) {
-      socket.disconnect(); // 🔥 evita múltiples jugadores
-    }
-
     const s = io(`http://${ip}`, {
       transports: ["websocket"]
     });
@@ -45,118 +34,73 @@ export default function App() {
     setSocket(s);
   };
 
-  // 🧹 cleanup
-  useEffect(() => {
-    return () => {
-      if (socket) socket.disconnect();
-    };
-  }, [socket]);
-
-  // 🎮 INPUTS (multitouch real)
-  const sendKeyDown = (key) => {
+  const sendKey = (key, type) => {
     if (!socket) return;
-
-    if (!inputState.current[key]) {
-      inputState.current[key] = true;
-      socket.emit("input:keydown", { key });
-    }
-  };
-
-  const sendKeyUp = (key) => {
-    if (!socket) return;
-
-    if (inputState.current[key]) {
-      inputState.current[key] = false;
-      socket.emit("input:keyup", { key });
-    }
+    socket.emit(`input:${type}`, { key });
   };
 
   return (
     <View style={styles.container}>
 
-      {/* 🔌 CONEXIÓN */}
+      {/* CONEXIÓN */}
       {!connected && (
         <View style={styles.connectBox}>
-          <Text style={styles.label}>IP del servidor</Text>
+          <Text>IP del servidor:</Text>
 
           <TextInput
             style={styles.input}
             placeholder="192.168.1.15:3000"
-            placeholderTextColor="#888"
             value={ip}
             onChangeText={setIp}
           />
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={connect}
-            disabled={connected}
-          >
-            <Text style={styles.buttonText}>CONECTAR</Text>
+          <TouchableOpacity style={styles.button} onPress={connect}>
+            <Text style={{ color: "#fff" }}>Conectar</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* 🎮 GAMEPAD */}
+      {/* GAMEPAD */}
       {connected && (
         <View style={styles.gamepad}>
 
           {/* LED */}
           <View style={styles.statusRow}>
             <View style={[styles.led, { backgroundColor: "green" }]} />
-            <Text style={styles.label}>Conectado</Text>
+            <Text>Conectado</Text>
           </View>
 
           <View style={styles.controls}>
 
-            {/* ⬅️➡️ */}
+            {/* D-PAD */}
             <View style={styles.dpad}>
               <TouchableOpacity
-                onPressIn={() => sendKeyDown("left")}
-                onPressOut={() => sendKeyUp("left")}
+                onPressIn={() => sendKey("left", "keydown")}
+                onPressOut={() => sendKey("left", "keyup")}
                 style={styles.padButton}
               >
-                <Text style={styles.padText}>←</Text>
+                <Text>←</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPressIn={() => sendKeyDown("right")}
-                onPressOut={() => sendKeyUp("right")}
+                onPressIn={() => sendKey("right", "keydown")}
+                onPressOut={() => sendKey("right", "keyup")}
                 style={styles.padButton}
               >
-                <Text style={styles.padText}>→</Text>
+                <Text>→</Text>
               </TouchableOpacity>
             </View>
 
-            {/* 🔴 BOTONES */}
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "red" }]}
-                onPressIn={() => sendKeyDown("jump")}
-                onPressOut={() => sendKeyUp("jump")}
-              >
-                <Text style={styles.actionText}>A</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "blue" }]}
-              >
-                <Text style={styles.actionText}>B</Text>
-              </TouchableOpacity>
-            </View>
+            {/* BOTÓN A */}
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPressIn={() => sendKey("jump", "keydown")}
+              onPressOut={() => sendKey("jump", "keyup")}
+            >
+              <Text style={{ color: "#fff", fontSize: 20 }}>A</Text>
+            </TouchableOpacity>
 
           </View>
-
-          {/* START / SELECT */}
-          <View style={styles.centerButtons}>
-            <View style={styles.smallBtn}>
-              <Text style={styles.smallText}>SELECT</Text>
-            </View>
-            <View style={styles.smallBtn}>
-              <Text style={styles.smallText}>START</Text>
-            </View>
-          </View>
-
         </View>
       )}
     </View>
@@ -166,7 +110,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#111",
     justifyContent: "center"
   },
 
@@ -174,26 +117,16 @@ const styles = StyleSheet.create({
     padding: 20
   },
 
-  label: {
-    color: "#fff"
-  },
-
   input: {
     borderWidth: 1,
-    borderColor: "#555",
     padding: 10,
-    marginVertical: 10,
-    color: "#fff"
+    marginVertical: 10
   },
 
   button: {
     backgroundColor: "#333",
     padding: 15,
     alignItems: "center"
-  },
-
-  buttonText: {
-    color: "#fff"
   },
 
   gamepad: {
@@ -225,50 +158,17 @@ const styles = StyleSheet.create({
   },
 
   padButton: {
-    backgroundColor: "#444",
+    backgroundColor: "#ccc",
     padding: 30,
     borderRadius: 10
   },
 
-  padText: {
-    color: "#fff",
-    fontSize: 24
-  },
-
-  actions: {
-    alignItems: "center",
-    gap: 20
-  },
-
   actionButton: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    backgroundColor: "red",
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     justifyContent: "center",
     alignItems: "center"
-  },
-
-  actionText: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold"
-  },
-
-  centerButtons: {
-    alignSelf: "center",
-    flexDirection: "row",
-    gap: 20
-  },
-
-  smallBtn: {
-    backgroundColor: "#555",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5
-  },
-
-  smallText: {
-    color: "#fff",
-    fontSize: 12
   }
 });
