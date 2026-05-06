@@ -7,15 +7,14 @@ const ESTADOS = {
 };
 
 class MainScene extends Phaser.Scene {
-  constructor() {
-    super("MainScene");
-  }
+    constructor() {
+        super("MainScene");
+    }
 
-  actualizarEstado() {
+    actualizarEstado() {
         const velocityX = this.player.body.velocity.x;
         const velocityY = this.player.body.velocity.y;
-
-        const enSuelo = Math.abs(velocityY) < 0.01;
+        const enSuelo = Math.abs(velocityY) < 0.5;
 
         let nuevoEstado = ESTADOS.IDLE;
 
@@ -30,71 +29,65 @@ class MainScene extends Phaser.Scene {
         if (nuevoEstado !== this.estadoPlayer) {
             this.estadoPlayer = nuevoEstado;
 
-            if (nuevoEstado === ESTADOS.IDLE) {
-                this.player.anims.play("idle", true);
-            }
-
-            if (nuevoEstado === ESTADOS.WALK) {
-                 this.player.anims.play("walk", true);
-            }
-
-            if (nuevoEstado === ESTADOS.JUMP) {
-                this.player.anims.play("jump", true);
+            switch (nuevoEstado) {
+                case ESTADOS.IDLE:
+                case ESTADOS.WALK:   // ✅ no hay sprite de walk, usa idle
+                    this.player.setTexture('player_idle');
+                    break;
+                case ESTADOS.JUMP:
+                    this.player.setTexture('player_jump');
+                    break;
             }
         }
     }
 
-  preload() {
-    this.load.tilemapTiledJSON('mapa', 'assets/maps/nivel_1.json');
-    this.load.image('tiles', 'assets/tilesets/tiles.png');
-    this.load.spritesheet("player_idle", "assets/character/char_sprite_idle.png", {
-        frameWidth: 32,
-        frameHeight: 32,
-    });
-
-    this.load.spritesheet("player_walk_jump", "assets/character/char_sprite_jump.png", {
-        frameWidth: 32,
-        frameHeight: 32,
-    });
-  }
+    preload() {
+        this.load.tilemapTiledJSON('mapa', 'assets/maps/nivel_1.json');
+        this.load.image('tiles', 'assets/tilesets/tiles.png');
+        this.load.image('player_idle', 'assets/character/char_sprite_idle.png'); // ✅ image, no spritesheet
+        this.load.image('player_jump', 'assets/character/char_sprite_jump.png'); // ✅ image, no spritesheet
+    }
 
     create() {
         const map = this.make.tilemap({ key: 'mapa' });
         const tileset = map.addTilesetImage('Blocks', 'tiles');
-        this.anims.create({
-            key: "idle",
-            frames: this.anims.generateFrameNumbers("player_idle", { start: 0, end: 3 }),
-            frameRate: 5,
-            repeat: -1,
-        });
-        map.createLayer('Capa de patrones 1', tileset, 0, 0);
-
+        const zoom = 2; // ajusta esto
         const collisionLayer = map.getObjectLayer('colisiones');
+
+
+        this.estadoPlayer = ESTADOS.IDLE;
+
+        map.createLayer('Capa de patrones 1', tileset, 0, 0);
 
         collisionLayer.objects.forEach(obj => {
             this.matter.add.rectangle(
-            obj.x + obj.width / 2,
-            obj.y + obj.height / 2,
-            obj.width,
-            obj.height,
-            {
-                isStatic: true
-            }
+                obj.x + obj.width / 2,
+                obj.y + obj.height / 2,
+                obj.width,
+                obj.height,
+                { isStatic: true }
             );
         });
-        this.player = this.matter.add.sprite(100, 100, 'player');
-        this.player.setBody({ type: 'rectangle', width: 20, height: 30 });
+
+        this.player = this.matter.add.sprite(100, 100, 'player_idle');
+        this.player.setBody({
+            type: 'rectangle',
+            width: this.player.width,
+            height: this.player.height
+        });
         this.player.setFixedRotation();
         this.player.setFriction(0.1);
         this.player.setBounce(0);
 
+        // ✅ Escalar el sprite para que no sea enorme en el mapa
+        this.player.setDisplaySize(32, 32);
+
         const mapWidth = map.widthInPixels;
         const mapHeight = map.heightInPixels;
         this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
-        this.scale.resize(mapWidth, mapHeight);
-        this.cameras.main.setZoom(1.5);
-        this.cameras.main.startFollow(this.player);
-
+        this.cameras.main.setZoom(zoom);
+        this.cameras.main.setBackgroundColor("#000000");
+        this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
         this.cursors = this.input.keyboard.addKeys({
             left: 'A',
             right: 'D',
@@ -105,11 +98,9 @@ class MainScene extends Phaser.Scene {
         const objetosLayer = map.getObjectLayer('objetos');
         const llaveObj = objetosLayer.objects.find(o => o.name === 'llave');
 
-        // 2. Guardar posición original para el respawn
         this.llaveSpawnX = llaveObj.x;
         this.llaveSpawnY = llaveObj.y;
 
-        // 3. Crear la llave como Matter Sprite (placeholder = círculo amarillo)
         const graphics = this.add.graphics();
         graphics.fillStyle(0xFFFF00);
         graphics.fillCircle(8, 8, 8);
@@ -117,10 +108,10 @@ class MainScene extends Phaser.Scene {
         graphics.destroy();
 
         this.llave = this.matter.add.sprite(this.llaveSpawnX, this.llaveSpawnY, 'llave_placeholder');
-        this.llave.setCircle(8);         // hitbox circular
-        this.llave.setIgnoreGravity(true); // flota
+        this.llave.setCircle(8);
+        this.llave.setIgnoreGravity(true);
         this.llave.setStatic(false);
-        this.llave.setSensor(true);      // no colisiona físicamente, solo detecta
+        this.llave.setSensor(true);
 
         this.matter.world.on('collisionstart', (event) => {
             event.pairs.forEach(pair => {
@@ -138,66 +129,43 @@ class MainScene extends Phaser.Scene {
         this.llaveAgarrada = false;
         this.llaveConstraint = null;
         this.playerPosHistory = [];
-        this.historyLength = 20; // cuántos frames atrás sigue la llave
-
-        this.anims.create({
-            key: "idle",
-            frames: this.anims.generateFrameNumbers("player_idle", { start: 0, end: 3 }),
-            frameRate: 5,
-            repeat: -1,
-        });
-
-        this.anims.create({
-            key: "walk",
-            frames: this.anims.generateFrameNumbers("player_walk_jump", { start: 0, end: 5 }),
-            frameRate: 10,
-            repeat: -1,
-        });
-
-        this.anims.create({
-            key: "jump",
-            frames: [{ key: "player_walk_jump", frame: 6 }],
-            frameRate: 1,
-        });
+        this.historyLength = 20;
     }
 
     update() {
         const speed = 2.5;
-        const jumpForce = -8;
+        const jumpForce = -6;
 
         if (this.cursors.left.isDown) {
             this.player.setVelocityX(-speed);
+            this.player.setFlipX(true);
         } else if (this.cursors.right.isDown) {
             this.player.setVelocityX(speed);
+            this.player.setFlipX(false);
         } else {
             this.player.setVelocityX(0);
         }
 
-        const isOnGround = Math.abs(this.player.body.velocity.y) < 0.01;
+        const isOnGround = Math.abs(this.player.body.velocity.y) < 0.5;
 
         if ((this.cursors.jump.isDown || this.cursors.space.isDown) && isOnGround) {
             this.player.setVelocityY(jumpForce);
         }
-        if (this.llaveAgarrada) {
-            this.llave.setPosition(
-                this.player.x + 20, // 20px a la derecha del jugador
-                this.player.y       // misma altura
-            );
-            this.llave.setVelocity(0, 0);
-        }
+
         this.playerPosHistory.push({ x: this.player.x, y: this.player.y });
         if (this.playerPosHistory.length > this.historyLength) {
             this.playerPosHistory.shift();
         }
 
-        // Mover la llave a la posición antigua
         if (this.llaveAgarrada && this.playerPosHistory.length === this.historyLength) {
-                const oldPos = this.playerPosHistory[0];
-                this.llave.setPosition(oldPos.x, oldPos.y);
-                this.llave.setVelocity(0, 0);
+            const oldPos = this.playerPosHistory[0];
+            this.llave.setPosition(oldPos.x, oldPos.y);
+            this.llave.setVelocity(0, 0);
         }
+
         this.actualizarEstado();
     }
+
     agarrarLlave() {
         if (this.llaveAgarrada) return;
         this.llaveAgarrada = true;
@@ -207,26 +175,27 @@ class MainScene extends Phaser.Scene {
 }
 
 async function initGame() {
-  const mapData = await fetch('assets/maps/nivel_1.json').then(resp => resp.json());
-  const mapWidth = mapData.width * mapData.tilewidth;
-  const mapHeight = mapData.height * mapData.tileheight;
+    const mapData = await fetch('assets/maps/nivel_1.json').then(resp => resp.json());
+    const mapWidth = mapData.width * mapData.tilewidth;
+    const mapHeight = mapData.height * mapData.tileheight;
 
-  const config = {
+    const config = {
     type: Phaser.AUTO,
-    width: mapWidth,
-    height: mapHeight,
-    backgroundColor: "#1d1d1d",
-    scene: [MainScene],
+    width: 800,
+    height: 600,
+    parent: "juego",
+    backgroundColor: "#000000",
     physics: {
-      default: "matter",
-      matter: {
+        default: "matter",
+        matter: {
         gravity: { y: 1 },
-        debug: true // habilitar para ver las hitboxes durante el desarrollo
-      }
-    }
-  };
+        debug: true
+        }
+    },
+    scene: [MainScene]
+    };
 
-  new Phaser.Game(config);
+    new Phaser.Game(config);
 }
 
 initGame();
