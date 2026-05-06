@@ -35,16 +35,20 @@ class MainScene extends Phaser.Scene {
         this.player.setFixedRotation(); // reemplaza inertia: Infinity
         this.player.setFriction(0.1);
         this.player.setBounce(0);
-        this.cameras.main.startFollow(this.player); // funciona directo
 
-
+        const mapWidth = map.widthInPixels;
+        const mapHeight = map.heightInPixels;
+        this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
+        this.scale.resize(mapWidth, mapHeight);
+        this.cameras.main.setZoom(1.5);
         this.cameras.main.startFollow(this.player);
+
         this.cursors = this.input.keyboard.addKeys({
             left: 'A',
             right: 'D',
             jump: 'W',
             space: 'SPACE'
-            });
+        });
 
         const objetosLayer = map.getObjectLayer('objetos');
         const llaveObj = objetosLayer.objects.find(o => o.name === 'llave');
@@ -130,19 +134,27 @@ class MainScene extends Phaser.Scene {
         }
 }
 
-const config = {
-  type: Phaser.AUTO,
-  width: 800,
-  height: 600,
-  backgroundColor: "#1d1d1d",
-  scene: [MainScene],
-  physics: {
-    default: "matter",
-    matter: {
-      gravity: { y: 1 },
-      debug: true // habilitar para ver las hitboxes durante el desarrollo
-    }
-  }
-};
+async function initGame() {
+  const mapData = await fetch('assets/maps/nivel_1.json').then(resp => resp.json());
+  const mapWidth = mapData.width * mapData.tilewidth;
+  const mapHeight = mapData.height * mapData.tileheight;
 
-new Phaser.Game(config);
+  const config = {
+    type: Phaser.AUTO,
+    width: mapWidth,
+    height: mapHeight,
+    backgroundColor: "#1d1d1d",
+    scene: [MainScene],
+    physics: {
+      default: "matter",
+      matter: {
+        gravity: { y: 1 },
+        debug: true // habilitar para ver las hitboxes durante el desarrollo
+      }
+    }
+  };
+
+  new Phaser.Game(config);
+}
+
+initGame();
