@@ -24,10 +24,10 @@ const InterfazDeConexion = ({
   onAbrirEscanerQR,
 }: Props) => (
 
-    <ImageBackground
-    source={require("../../assets/background/PixelArt_Background.png")}
+  <ImageBackground
+    source={require("../../../assets/background/PixelArt_Background.png")}
     style={estilos.contenedor}
-    resizeMode="cover"
+    resizeMode="stretch"
   >
     <Text style={estilos.titulo}>Interfaz de Conexión</Text>
     <TextInput
@@ -69,13 +69,13 @@ const estilos = StyleSheet.create({
     fontSize: 28,
     color: COLORES.INTERFAZ_TITULO,
     fontWeight: "bold",
-    marginBottom: 30,
+    marginBottom: 40,
     fontFamily: "monospace",
   },
   inputIp: {
     backgroundColor: COLORES.INTERFAZ_INPUT_FONDO,
     color: COLORES.INTERFAZ_TITULO,
-    width: "100%",
+    width: "95%",
     padding: 15,
     borderRadius: 0,
     fontSize: 16,
@@ -110,6 +110,7 @@ const estilos = StyleSheet.create({
     borderColor: COLORES.INTERFAZ_BOTON_BORDE,
     width: "80%",
     alignItems: "center",
+    marginBottom: 10,
   },
   textoDeBoton: {
     color: COLORES.INTERFAZ_TEXTO,
