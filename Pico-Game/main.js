@@ -1,20 +1,72 @@
 import Phaser from "phaser";
 
+const ESTADOS = {
+    IDLE: "idle",
+    WALK: "walk",
+    JUMP: "jump"
+};
+
 class MainScene extends Phaser.Scene {
   constructor() {
     super("MainScene");
   }
 
+  actualizarEstado() {
+        const velocityX = this.player.body.velocity.x;
+        const velocityY = this.player.body.velocity.y;
+
+        const enSuelo = Math.abs(velocityY) < 0.01;
+
+        let nuevoEstado = ESTADOS.IDLE;
+
+        if (!enSuelo) {
+            nuevoEstado = ESTADOS.JUMP;
+        } else if (Math.abs(velocityX) > 0.5) {
+            nuevoEstado = ESTADOS.WALK;
+        } else {
+            nuevoEstado = ESTADOS.IDLE;
+        }
+
+        if (nuevoEstado !== this.estadoPlayer) {
+            this.estadoPlayer = nuevoEstado;
+
+            if (nuevoEstado === ESTADOS.IDLE) {
+                this.player.anims.play("idle", true);
+            }
+
+            if (nuevoEstado === ESTADOS.WALK) {
+                 this.player.anims.play("walk", true);
+            }
+
+            if (nuevoEstado === ESTADOS.JUMP) {
+                this.player.anims.play("jump", true);
+            }
+        }
+    }
+
   preload() {
     this.load.tilemapTiledJSON('mapa', 'assets/maps/nivel_1.json');
     this.load.image('tiles', 'assets/tilesets/tiles.png');
-    this.load.image('player', 'assets/player.png');
+    this.load.spritesheet("player_idle", "assets/character/char_sprite_idle.png", {
+        frameWidth: 32,
+        frameHeight: 32,
+    });
+
+    this.load.spritesheet("player_walk_jump", "assets/character/char_sprite_jump.png", {
+        frameWidth: 32,
+        frameHeight: 32,
+    });
   }
 
     create() {
         const map = this.make.tilemap({ key: 'mapa' });
         const tileset = map.addTilesetImage('Blocks', 'tiles');
-
+        this.anims.create({
+            key: "idle",
+            frames: this.anims.generateFrameNumbers("player_idle", { start: 0, end: 3 }),
+            frameRate: 5,
+            repeat: -1,
+        });
         map.createLayer('Capa de patrones 1', tileset, 0, 0);
 
         const collisionLayer = map.getObjectLayer('colisiones');
@@ -32,7 +84,7 @@ class MainScene extends Phaser.Scene {
         });
         this.player = this.matter.add.sprite(100, 100, 'player');
         this.player.setBody({ type: 'rectangle', width: 20, height: 30 });
-        this.player.setFixedRotation(); // reemplaza inertia: Infinity
+        this.player.setFixedRotation();
         this.player.setFriction(0.1);
         this.player.setBounce(0);
 
@@ -86,7 +138,27 @@ class MainScene extends Phaser.Scene {
         this.llaveAgarrada = false;
         this.llaveConstraint = null;
         this.playerPosHistory = [];
-        this.historyLength = 20; // cuántos frames atrás sigue (ajustable)
+        this.historyLength = 20; // cuántos frames atrás sigue la llave
+
+        this.anims.create({
+            key: "idle",
+            frames: this.anims.generateFrameNumbers("player_idle", { start: 0, end: 3 }),
+            frameRate: 5,
+            repeat: -1,
+        });
+
+        this.anims.create({
+            key: "walk",
+            frames: this.anims.generateFrameNumbers("player_walk_jump", { start: 0, end: 5 }),
+            frameRate: 10,
+            repeat: -1,
+        });
+
+        this.anims.create({
+            key: "jump",
+            frames: [{ key: "player_walk_jump", frame: 6 }],
+            frameRate: 1,
+        });
     }
 
     update() {
@@ -123,15 +195,15 @@ class MainScene extends Phaser.Scene {
                 const oldPos = this.playerPosHistory[0];
                 this.llave.setPosition(oldPos.x, oldPos.y);
                 this.llave.setVelocity(0, 0);
-            }
         }
-
-        agarrarLlave() {
-            if (this.llaveAgarrada) return;
-            this.llaveAgarrada = true;
-            this.llave.setIgnoreGravity(true);
-            this.llave.setSensor(true);
-        }
+        this.actualizarEstado();
+    }
+    agarrarLlave() {
+        if (this.llaveAgarrada) return;
+        this.llaveAgarrada = true;
+        this.llave.setIgnoreGravity(true);
+        this.llave.setSensor(true);
+    }
 }
 
 async function initGame() {
