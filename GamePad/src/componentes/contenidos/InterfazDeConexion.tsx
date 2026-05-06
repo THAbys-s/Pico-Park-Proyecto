@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { COLORES } from "../../constantes/colores";
+import { ImageBackground } from "react-native";
 
 type Props = {
   direccionIp: string;
@@ -22,7 +23,12 @@ const InterfazDeConexion = ({
   onConectarConIp,
   onAbrirEscanerQR,
 }: Props) => (
-  <View style={estilos.contenedor}>
+
+    <ImageBackground
+    source={require("../../assets/background/PixelArt_Background.png")}
+    style={estilos.contenedor}
+    resizeMode="cover"
+  >
     <Text style={estilos.titulo}>Interfaz de Conexión</Text>
     <TextInput
       style={estilos.inputIp}
@@ -48,7 +54,7 @@ const InterfazDeConexion = ({
         <Text style={estilos.textoDeBoton}>Escanear QR</Text>
       </TouchableOpacity>
     </View>
-  </View>
+  </ImageBackground>
 );
 
 const estilos = StyleSheet.create({
