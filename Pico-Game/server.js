@@ -1,54 +1,51 @@
 const express = require("express");
 const app = express();
+
 const http = require("http").Server(app);
-const io = require("socket.io")(http);
+
+const io = require("socket.io")(http, {
+  cors: {
+    origin: "*",
+  },
+});
+
 const os = require("os");
 const path = require("path");
 
-// Sirve los archivos estáticos del juego (desde el directorio raíz de Pico-Game)
 app.use(express.static(path.join(__dirname, ".")));
 
 const PUERTO = 3000;
-const gamepadsConectados = new Set();
-const coloresParaJugadores = ["0xff4444", "0x44ff44", "0x4488ff", "0xffff44"];
+const MAX_JUGADORES = 4;
+const TIMEOUT_RECONEXION = 5000;
+
+// idJugador -> jugador
+const jugadores = new Map();
+
+// sockets de pantallas
+const pantallas = new Set();
+
+const coloresParaJugadores = [
+  "0xff4444",
+  "0x44ff44",
+  "0x4488ff",
+  "0xffff44",
+];
 
 function obtenerIPLocal() {
   const interfaces = os.networkInterfaces();
-  let mejorIP = null;
 
-  for (let nombre in interfaces) {
-    if (
-      nombre.toLowerCase().includes("virtual") ||
-      nombre.toLowerCase().includes("vmware") ||
-      nombre.toLowerCase().includes("hyper-v") ||
-      nombre.toLowerCase().includes("wsl") ||
-      nombre.toLowerCase().includes("vethernet") ||
-      nombre.toLowerCase().includes("loopback")
-    ) {
-      continue;
-    }
-
-    for (let net of interfaces[nombre]) {
-      if (net.family !== "IPv4" || net.internal) continue;
-      const ip = net.address;
-
-      if (ip.startsWith("192.168.56.")) continue;
-
+  for (const nombre in interfaces) {
+    for (const net of interfaces[nombre]) {
       if (
-        ip.startsWith("192.168.") ||
-        ip.startsWith("10.") ||
-        (ip.startsWith("172.") &&
-          parseInt(ip.split(".")[1]) >= 16 &&
-          parseInt(ip.split(".")[1]) <= 31)
+        net.family === "IPv4" &&
+        !net.internal
       ) {
-        return ip;
+        return net.address;
       }
-
-      if (!mejorIP) mejorIP = ip;
     }
   }
 
-  return mejorIP || "localhost";
+  return "localhost";
 }
 
 const ip = obtenerIPLocal();
@@ -57,99 +54,233 @@ app.get("/ip", (req, res) => {
   res.json({ ip });
 });
 
+function emitirAPantallas(evento, data) {
+  pantallas.forEach((socketId) => {
+    io.to(socketId).emit(evento, data);
+  });
+}
+
+function obtenerSlotLibre() {
+  for (let i = 0; i < MAX_JUGADORES; i++) {
+    const jugador = jugadores.get(i);
+
+    // slot vacío
+    if (!jugador) {
+      return i;
+    }
+
+    // slot desconectado
+    if (!jugador.conectado) {
+      if (jugador.timeoutId) {
+        clearTimeout(jugador.timeoutId);
+      }
+
+      jugadores.delete(i);
+
+      return i;
+    }
+  }
+
+  return null;
+}
+
+function cantidadConectados() {
+  let total = 0;
+
+  for (const jugador of jugadores.values()) {
+    if (jugador.conectado) {
+      total++;
+    }
+  }
+
+  return total;
+}
+
 io.on("connection", (socket) => {
   const tipo = socket.handshake.query.tipo;
+  const idJugadorAnterior = socket.handshake.query.idJugador;
+
   const esPantalla = tipo === "pantalla";
   const esGamepad = tipo === "gamepad";
 
+  console.log(`Nueva conexión: ${socket.id} (${tipo})`);
+
+  // Pantalla
   if (esPantalla) {
-    console.log("Videojuego conectado");
-    console.log("Reinicio de juego");
-    io.emit("servidorReiniciado");
-  } else if (esGamepad) {
-    if (gamepadsConectados.size >= 4) {
-      console.log("Conexion rechazada: sala llena (Máximo de 4 jugadores)");
-      socket.disconnect(true);
-      return;
+    pantallas.add(socket.id);
+
+    console.log("[PANTALLA] Juego conectado");
+
+    // enviar todos los jugadores actuales
+    for (const [idJugador, jugador] of jugadores) {
+      if (jugador.conectado) {
+        socket.emit("nuevoJugador", {
+          idJugador,
+          color: jugador.color,
+        });
+      }
     }
-    gamepadsConectados.add(socket.id);
-    const indice = gamepadsConectados.size - 1;
-    console.log(`Gamepad conectado - jugadores: ${gamepadsConectados.size}`);
-    io.emit("nuevoJugador", {
-      idDelSocket: socket.id,
-      color: coloresParaJugadores[indice],
+
+    socket.on("disconnect", () => {
+      pantallas.delete(socket.id);
+
+      console.log("[PANTALLA] Juego desconectado");
     });
-  } else {
-    console.log("Conexion ignorada (tipo desconocido)");
+
+    return;
   }
 
-  socket.on("pedirJugadoresConectados", () => {
-    let indice = 0;
-    gamepadsConectados.forEach((id) => {
-      socket.emit("nuevoJugador", {
-        idDelSocket: id,
-        color: coloresParaJugadores[indice],
-      });
-      indice++;
-    });
-  });
+  // Gamepad
+  if (esGamepad) {
+    let idJugador = null;
 
-  socket.on("message", (msg) => {
-    io.emit("inputDeJugador", {
-      idDelSocket: socket.id,
-      tipoDeEvento: msg.tipo,
-      teclaPresionada: msg.tecla,
-    });
-  });
+    // Reconexión
+    if (idJugadorAnterior !== undefined) {
+      const id = parseInt(idJugadorAnterior);
 
-  socket.on("error", (err) => {
-    console.log(`error de conexion: ${err.message}`);
-  });
+      const jugadorExistente = jugadores.get(id);
 
-  socket.on("disconnect", () => {
-    if (esPantalla) {
-      console.log("Videojuego desconectado");
-    } else if (esGamepad) {
-      gamepadsConectados.delete(socket.id);
-      console.log(
-        `Gamepad desconectado - jugadores: ${gamepadsConectados.size}`,
-      );
-      io.emit("jugadorDesconectado", socket.id);
+      if (
+        jugadorExistente &&
+        !jugadorExistente.conectado
+      ) {
+        console.log(`[GAMEPAD] Reconectado jugador ${id}`);
+
+        if (jugadorExistente.timeoutId) {
+          clearTimeout(jugadorExistente.timeoutId);
+          jugadorExistente.timeoutId = null;
+        }
+
+        jugadorExistente.socketId = socket.id;
+        jugadorExistente.conectado = true;
+
+        idJugador = id;
+      }
     }
-  });
+
+    // Nueva conexión (Administración de Slots)
+    if (idJugador === null) {
+      idJugador = obtenerSlotLibre();
+
+      if (idJugador === null) {
+        console.log("[GAMEPAD] Sala llena");
+
+        socket.emit("salaLlena");
+
+        socket.disconnect(true);
+
+        return;
+      }
+
+      jugadores.set(idJugador, {
+        idJugador,
+        socketId: socket.id,
+        conectado: true,
+        color: coloresParaJugadores[idJugador],
+        timeoutId: null,
+      });
+
+      console.log(`[GAMEPAD] Nuevo jugador ${idJugador}`);
+    }
+
+    const jugador = jugadores.get(idJugador);
+
+    // Notificar al gamepad su ID asignado
+    socket.emit("asignarIdJugador", {
+      idJugador,
+    });
+
+    // Notificar a las pantallas
+    emitirAPantallas("nuevoJugador", {
+      idJugador,
+      color: jugador.color,
+    });
+
+    console.log(
+      `[GAMEPAD] Jugador ${idJugador} conectado (${cantidadConectados()}/${MAX_JUGADORES})`
+    );
+
+    // Administración de eventos del gamepad (Inputs)
+    socket.on("message", (msg) => {
+      emitirAPantallas("inputDeJugador", {
+        idJugador,
+        tipoDeEvento: msg.tipo,
+        teclaPresionada: msg.tecla,
+      });
+    });
+
+    // Manejo de errores
+    socket.on("error", (err) => {
+      console.log(
+        `[GAMEPAD] Error jugador ${idJugador}: ${err.message}`
+      );
+    });
+
+    // Manejo de desconexión
+    socket.on("disconnect", () => {
+      const jugadorActual = jugadores.get(idJugador);
+
+      if (!jugadorActual) return;
+
+      jugadorActual.conectado = false;
+
+      console.log(
+        `[GAMEPAD] Jugador ${idJugador} desconectado`
+      );
+
+      emitirAPantallas("jugadorDesconectado", {
+        idJugador,
+      });
+
+      jugadorActual.timeoutId = setTimeout(() => {
+        console.log(
+          `[GAMEPAD] Jugador ${idJugador} eliminado por timeout`
+        );
+
+        jugadores.delete(idJugador);
+
+        emitirAPantallas("jugadorLiberado", {
+          idJugador,
+        });
+      }, TIMEOUT_RECONEXION);
+    });
+
+    return;
+  }
+
+  // Manejo de conexiones con tipos desconocidos.
+  console.log("Conexión ignorada (tipo inválido)");
+
+  socket.disconnect(true);
 });
 
+// Inicio del servidor
 http.listen(PUERTO, "0.0.0.0", () => {
-  console.log(`videojuego funcionando en ${ip}:${PUERTO}`);
-  console.log(`conectar gamepads a ${ip}:${PUERTO}`);
+  console.log(`Servidor iniciado`);
+  console.log(`Juego: http://${ip}:${PUERTO}`);
+  console.log(`Gamepads: http://${ip}:${PUERTO}`);
 });
 
+// Manejo de cierre del servidor
 function cerrarServidor() {
   console.log("Apagando servidor...");
 
-  // Avisar a los clientes (opcional)
   io.emit("servidorApagado");
 
-  // Desconectar todos los sockets
   io.sockets.sockets.forEach((socket) => {
     socket.disconnect(true);
   });
 
-  // Cerrar servidor HTTP
   http.close(() => {
-    console.log("Servidor cerrado correctamente");
+    console.log("Servidor cerrado");
+
     process.exit(0);
   });
 
-  // Failsafe (por si algo queda colgado)
   setTimeout(() => {
-    console.log("Forzando cierre del servidor");
     process.exit(1);
   }, 3000);
 }
 
-// Ctrl + C
 process.on("SIGINT", cerrarServidor);
-
-// También cubre kill en algunos sistemas
 process.on("SIGTERM", cerrarServidor);
