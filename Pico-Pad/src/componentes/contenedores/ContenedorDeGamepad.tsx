@@ -4,6 +4,7 @@ import {
   View,
   LayoutChangeEvent,
   GestureResponderEvent,
+  Text,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ControlDeSalto from "../contenidos/ControlDeSalto";
@@ -21,6 +22,8 @@ type Props = {
   onCapturarLayoutDerecha: (e: LayoutChangeEvent) => void;
   onCapturarLayoutSalto: (e: LayoutChangeEvent) => void;
   onProcesarToques: (e: GestureResponderEvent) => void;
+  idJugador?: number;
+  totalJugadores?: number;
 };
 
 const ContenedorDeGamepad = ({
@@ -32,10 +35,19 @@ const ContenedorDeGamepad = ({
   onCapturarLayoutDerecha,
   onCapturarLayoutSalto,
   onProcesarToques,
+  idJugador,
+  totalJugadores,
 }: Props) => (
   <SafeAreaView style={estilos.contenedor}>
     <View style={estilos.barraSuperior}>
-      <EstadoDeEnlace />
+      <View>
+        <EstadoDeEnlace />
+        {idJugador !== undefined && (
+          <Text style={estilos.textoJugador}>
+            Jugador {idJugador + 1} ({totalJugadores}/4)
+          </Text>
+        )}
+      </View>
       <BotonParaSalir onSalir={onSalir} />
     </View>
     <View
@@ -69,6 +81,11 @@ const estilos = StyleSheet.create({
     paddingTop: 10,
     height: 50,
     zIndex: 10,
+  },
+  textoJugador: {
+    color: COLORES.TEXTO_PRINCIPAL,
+    fontSize: 12,
+    marginTop: 4,
   },
   zonaDeControles: { flex: 1, position: "relative" },
   capaVisual: {

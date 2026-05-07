@@ -15,6 +15,7 @@ const App = () => {
     conectarAlServidor,
     desconectarDelServidor,
     enviarEventoDeControl,
+    estadoJugador,
   } = useConexionAlServidor();
 
   const handleIpEscaneada = (ip: string) => {
@@ -77,6 +78,8 @@ const App = () => {
         onCapturarLayoutDerecha={capturarLayoutDeZona(layoutBotonDerecha)}
         onCapturarLayoutSalto={capturarLayoutDeZona(layoutBotonSalto)}
         onProcesarToques={procesarToques}
+        idJugador={estadoJugador?.idJugador}
+        totalJugadores={estadoJugador?.totalJugadores}
       />
     </>
   );

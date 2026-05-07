@@ -11,3 +11,9 @@ export type EstadoDeConexion =
   | "Conectado"
   | "Servidor apagado"
   | "Error de red";
+
+export type EstadoJugador = {
+  idJugador: string;
+  totalJugadores: number;
+  color?: string;
+};

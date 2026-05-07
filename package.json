@@ -1,5 +1,10 @@
 {
-  "dependencies": {
-    "yet": "^0.1.0"
-  }
+  "name": "pico-park-multiplayer",
+  "version": "1.0.0",
+  "description": "Pico Park - Multiplayer Game",
+  "private": true,
+  "workspaces": [
+    "Pico-Game",
+    "Pico-Pad"
+  ]
 }
