@@ -328,32 +328,33 @@ class MainScene extends window.Phaser.Scene {
                 // Lógica de colisión con resortes.
 
                 if (this.resortes && this.resortes.length) {
+
                     for (const resorte of this.resortes) {
+
                         for (const [id, jugador] of this.jugadores) {
-                            if (
-                                jugador.sprite &&
+
+                            if (!jugador.sprite) {
+                                continue;
+                            }
+
+                            const tocaResorte =
                                 (
-                                    (
-                                        bodyA === jugador.sprite.body &&
-                                        bodyB === resorte.body
-                                    )
-                                    ||
-                                    (
-                                        bodyB === jugador.sprite.body &&
-                                        bodyA === resorte.body
-                                    )
+                                    bodyA === jugador.sprite.body &&
+                                    bodyB === resorte
                                 )
-                            ) {
-                                const velocityY = jugador.sprite.body.velocity.y;
+                                ||
+                                (
+                                    bodyB === jugador.sprite.body &&
+                                    bodyA === resorte
+                                );
 
-                                if (velocityY >= 0) {
+                            if (tocaResorte) {
 
-                                    // impulso fuerte del resorte
-                                    jugador.sprite.setVelocityY(-20);
+                                jugador.sprite.setVelocityY(-25);
 
-                                    // marcar que ya no está en suelo
-                                    jugador.enSuelo = false;
-                                }
+                                jugador.enSuelo = false;
+
+                                console.log("RESORTE!");
                             }
                         }
                     }

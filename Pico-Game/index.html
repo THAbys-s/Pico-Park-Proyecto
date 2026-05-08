@@ -3,31 +3,105 @@
   <head>
     <meta charset="UTF-8" />
     <title>Pico Clone</title>
-    <!-- Phaser 3 desde CDN -->
+
+    <!-- Phaser -->
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
-    <!-- Socket.IO Client desde CDN -->
+
+    <!-- Socket.IO -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+    <!-- QRCode -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   </head>
 
-  <body style="
-    margin: 0;
-    padding: 0;
-    background: #000;
-    color: #fff;
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  ">
-    <h1 style="margin-top: 10px; font-size: 24px">Pico Clone</h1>
-
-    <div id="juego" style="
-      margin-top: 10px;
+  <body
+    style="
+      margin: 0;
+      padding: 0;
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-    "></div>
+    "
+  >
+    <h1 style="margin-top: 10px; font-size: 24px">
+      Pico Clone
+    </h1>
+
+    <div
+      id="juego"
+      style="
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      "
+    ></div>
+
+    <!-- INFO CONEXIÓN -->
+    <div
+      id="conexion"
+      style="
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      "
+    >
+      <div
+        id="ipTexto"
+        style="
+          font-size: 18px;
+          font-weight: bold;
+        "
+      >
+        Cargando IP...
+      </div>
+
+      <canvas
+        id="qr"
+        style="
+          background: white;
+          padding: 10px;
+          border-radius: 12px;
+        "
+      ></canvas>
+    </div>
 
     <script src="/main.js"></script>
+
+    <script>
+      async function cargarQR() {
+        try {
+          const response = await fetch("/ip");
+
+          const data = await response.json();
+
+          const url = `http://${data.ip}:3000`;
+
+          document.getElementById("ipTexto").innerText =
+            `Conectate a: ${url}`;
+
+          QRCode.toCanvas(
+            document.getElementById("qr"),
+            url,
+            {
+              width: 220,
+              margin: 2,
+            }
+          );
+        } catch (err) {
+          console.error(err);
+
+          document.getElementById("ipTexto").innerText =
+            "No se pudo obtener la IP";
+        }
+      }
+
+      cargarQR();
+    </script>
   </body>
 </html>
