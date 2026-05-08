@@ -15,6 +15,11 @@ class MainScene extends window.Phaser.Scene {
         this.load.image('tiles', 'assets/tilesets/tiles.png');
 
         this.load.image(
+            'llave_sprite',
+            'assets/tilesets/llave_sprite.png'
+        );
+
+        this.load.image(
             'player_idle',
             'assets/character/char_sprite_idle.png'
         );
@@ -220,6 +225,25 @@ class MainScene extends window.Phaser.Scene {
                     ){
                         jugador.enSuelo = true;
                     }
+
+                    // Detección de colisión con la caja (para saltar encima)
+
+                    if (
+                        (
+                            bodyA === jugador.sprite.body &&
+                            bodyB.label === 'caja'
+                        )
+                        ||
+                        (
+                            bodyB === jugador.sprite.body &&
+                            bodyA.label === 'caja'
+                        )
+                    ){
+                        // Si el jugador está cayendo o quieto verticalmente, considerar en suelo
+                        if (jugador.sprite.body.velocity.y >= -0.1) {
+                            jugador.enSuelo = true;
+                        }
+                    }
                 }
 
                 for (const [id1, jugador1] of this.jugadores) {
@@ -271,6 +295,69 @@ class MainScene extends window.Phaser.Scene {
                         }
                     }
                 }
+
+                // Lógica de colisión con la puerta.
+
+                if (this.puerta) {
+
+                    for (const [id, jugador] of this.jugadores) {
+
+                        if (
+                            jugador.sprite &&
+                            (
+                                (
+                                    bodyA === jugador.sprite.body &&
+                                    bodyB.label === 'puerta'
+                                )
+                                ||
+                                (
+                                    bodyA.label === 'puerta' &&
+                                    bodyB === jugador.sprite.body
+                                )
+                            )
+                        ) {
+                            jugador.enPuerta = true;
+
+                            if (jugador.hasKey && !this.puertaAbierta) {
+                                this.abrirPuerta();
+                            }
+                        }
+                    }
+                }
+
+                // Lógica de colisión con resortes.
+
+                if (this.resortes && this.resortes.length) {
+                    for (const resorte of this.resortes) {
+                        for (const [id, jugador] of this.jugadores) {
+                            if (
+                                jugador.sprite &&
+                                (
+                                    (
+                                        bodyA === jugador.sprite.body &&
+                                        bodyB === resorte.body
+                                    )
+                                    ||
+                                    (
+                                        bodyB === jugador.sprite.body &&
+                                        bodyA === resorte.body
+                                    )
+                                )
+                            ) {
+                                const velocityY = jugador.sprite.body.velocity.y;
+
+                                if (velocityY >= 0) {
+
+                                    // impulso fuerte del resorte
+                                    jugador.sprite.setVelocityY(-20);
+
+                                    // marcar que ya no está en suelo
+                                    jugador.enSuelo = false;
+                                }
+                            }
+                        }
+                    }
+                }
             });
         });
 
@@ -296,6 +383,23 @@ class MainScene extends window.Phaser.Scene {
                     ) {
                         jugador.enSuelo = false;
                     }
+
+                    if (
+                        jugador.sprite &&
+                        (
+                            (
+                                bodyA === jugador.sprite.body &&
+                                bodyB.label === 'puerta'
+                            )
+                            ||
+                            (
+                                bodyA.label === 'puerta' &&
+                                bodyB === jugador.sprite.body
+                            )
+                        )
+                    ) {
+                        jugador.enPuerta = false;
+                    }
                 }
             });
         });
@@ -313,24 +417,10 @@ class MainScene extends window.Phaser.Scene {
             this.llaveSpawnX = llaveObj.x;
             this.llaveSpawnY = llaveObj.y;
 
-            const graphics = this.add.graphics();
-
-            graphics.fillStyle(0xFFFF00);
-
-            graphics.fillCircle(8, 8, 8);
-
-            graphics.generateTexture(
-                'llave_placeholder',
-                16,
-                16
-            );
-
-            graphics.destroy();
-
             this.llave = this.matter.add.sprite(
                 this.llaveSpawnX,
                 this.llaveSpawnY,
-                'llave_placeholder'
+                'llave_sprite'
             );
 
             this.llave.setCircle(8);
@@ -346,6 +436,128 @@ class MainScene extends window.Phaser.Scene {
             this.llaveAgarrada = false;
 
             this.llaveAgarraPor = null;
+        }
+
+        const puertaObj = objetosLayer?.objects.find(
+            o => o.name === 'puerta'
+        );
+
+        if (puertaObj) {
+            this.puerta = this.matter.add.rectangle(
+                puertaObj.x + puertaObj.width / 2,
+                puertaObj.y + puertaObj.height / 2,
+                puertaObj.width,
+                puertaObj.height,
+                {
+                    isStatic: true,
+                    isSensor: true,
+                    label: 'puerta'
+                }
+            );
+
+            this.add.rectangle(
+                puertaObj.x + puertaObj.width / 2,
+                puertaObj.y + puertaObj.height / 2,
+                puertaObj.width,
+                puertaObj.height,
+                0x663300,
+                1
+            );
+
+            this.puertaAbierta = false;
+        }
+
+        const escaleraObj = objetosLayer?.objects.find(
+            o => o.name === 'escalera'
+        );
+
+        if (escaleraObj) {
+            this.escalera = this.matter.add.rectangle(
+                escaleraObj.x + escaleraObj.width / 2,
+                escaleraObj.y + escaleraObj.height / 2,
+                escaleraObj.width,
+                escaleraObj.height,
+                {
+                    isStatic: true,
+                    isSensor: true,
+                    label: 'escalera'
+                }
+            );
+
+            this.add.rectangle(
+                escaleraObj.x + escaleraObj.width / 2,
+                escaleraObj.y + escaleraObj.height / 2,
+                escaleraObj.width,
+                escaleraObj.height,
+                0x888888,
+                0.3
+            );
+        }
+
+        const resorteObjs = objetosLayer?.objects.filter(
+            o => o.name === 'resorte'
+        ) || [];
+
+        this.resortes = [];
+
+        resorteObjs.forEach(resorteObj => {
+            const resorte = this.matter.add.rectangle(
+                resorteObj.x + resorteObj.width / 2,
+                resorteObj.y + resorteObj.height / 2,
+                resorteObj.width,
+                resorteObj.height,
+                {
+                    isStatic: true,
+                    isSensor: true,
+                    label: 'resorte'
+                }
+            );
+
+            this.add.rectangle(
+                resorteObj.x + resorteObj.width / 2,
+                resorteObj.y + resorteObj.height / 2,
+                resorteObj.width,
+                resorteObj.height,
+                0xffaa00,
+                0.6
+            );
+
+            this.resortes.push(resorte);
+        });
+
+        const cajaObj = objetosLayer?.objects.find(
+            o => o.name === 'caja'
+        );
+
+        if (cajaObj) {
+            const hitboxWidth = cajaObj.width;
+            const hitboxHeight = cajaObj.height;
+            const spriteWidth = cajaObj.width;
+            const spriteHeight = cajaObj.height;
+
+            this.caja = this.matter.add.rectangle(
+                cajaObj.x + cajaObj.width / 2,
+                cajaObj.y + cajaObj.height / 2,
+                hitboxWidth,
+                hitboxHeight,
+                {
+                    isStatic: false,
+                    label: 'caja',
+                    friction: 1.0,
+                    frictionAir: 0.2,
+                    restitution: 0,
+                    density: 0.005
+                }
+            );
+
+            this.cajaGraphics = this.add.rectangle(
+                cajaObj.x + cajaObj.width / 2,
+                cajaObj.y + cajaObj.height / 2,
+                spriteWidth,
+                spriteHeight,
+                0x8B4513, // Marrón
+                1
+            );
         }
 
         // Teclado Local para debug (Luego se eliminará)
@@ -370,10 +582,14 @@ class MainScene extends window.Phaser.Scene {
 
         sprite.setTint(color);
 
+        // tamaño visual más chico
+        sprite.setScale(0.65);
+
+        // hitbox más precisa
         sprite.setBody({
             type: 'rectangle',
-            width: 32,
-            height: 32
+            width: 18,
+            height: 22
         });
 
         sprite.setFixedRotation();
@@ -398,7 +614,13 @@ class MainScene extends window.Phaser.Scene {
 
             historyLen: 20,
 
-            enSuelo: false
+            enSuelo: false,
+
+            hasKey: false,
+
+            enPuerta: false,
+
+            salio: false
         };
 
         this.jugadores.set(idJugador, jugador);
@@ -471,9 +693,9 @@ class MainScene extends window.Phaser.Scene {
         const distancia =
             Math.sqrt(dx * dx + dy * dy);
 
-        if (distancia < 32 && distancia > 0) {
+    if (distancia < 20 && distancia > 0) {
 
-            const minDist = 32;
+        const minDist = 20;
 
             const ratio = minDist / distancia;
 
@@ -503,9 +725,44 @@ class MainScene extends window.Phaser.Scene {
 
         this.llaveAgarraPor = jugador.idJugador;
 
+        jugador.hasKey = true;
+
         this.llave.setIgnoreGravity(true);
 
         this.llave.setSensor(true);
+    }
+
+    abrirPuerta() {
+        this.puertaAbierta = true;
+
+        if (this.puerta) {
+            const puertaGraphics = this.add.rectangle(
+                this.puerta.position.x,
+                this.puerta.position.y,
+                this.puerta.bounds.max.x - this.puerta.bounds.min.x,
+                this.puerta.bounds.max.y - this.puerta.bounds.min.y,
+                0x00aa00,
+                0.8
+            );
+            puertaGraphics.setDepth(1);
+        }
+
+        console.log('[JUEGO] Puerta abierta');
+    }
+
+    salirDelNivel(jugador) {
+        if (!jugador || jugador.salio) {
+            return;
+        }
+
+        jugador.salio = true;
+        jugador.sprite.setVelocity(0, 0);
+        jugador.sprite.setTint(0x00ff00);
+        jugador.sprite.setStatic(true);
+
+        console.log(
+            `[JUEGO] Jugador ${jugador.idJugador} salió del nivel`
+        );
     }
 
     // UPDATE
@@ -554,6 +811,10 @@ class MainScene extends window.Phaser.Scene {
 
         for (const [id, jugador] of this.jugadores) {
 
+            if (jugador.salio) {
+                continue;
+            }
+
             const inputs = jugador.inputs;
 
             // Detección de movimiento horizontal.
@@ -575,6 +836,17 @@ class MainScene extends window.Phaser.Scene {
                 jugador.sprite.setVelocityX(0);
             }
 
+            // Lógica de salida de nivel cuando el jugador tiene la llave y está en la puerta.
+
+            if (
+                jugador.hasKey &&
+                jugador.enPuerta &&
+                inputs.has('ArrowUp')
+            ) {
+                this.salirDelNivel(jugador);
+                continue;
+            }
+
             // Detección de salto.
 
             const isOnGround = jugador.enSuelo;
@@ -590,6 +862,7 @@ class MainScene extends window.Phaser.Scene {
                 jugador.sprite.setVelocityY(
                     jumpForce
                 );
+                jugador.enSuelo = false; // Prevenir saltos infinitos
             }
 
             // Actualizar animación segun el estado.
@@ -663,6 +936,12 @@ class MainScene extends window.Phaser.Scene {
                 0.1,
                 0.1
             );
+        }
+
+        // Sincronizar posición del gráfico de la caja con el body físico
+
+        if (this.caja && this.cajaGraphics) {
+            this.cajaGraphics.setPosition(this.caja.position.x, this.caja.position.y);
         }
     }
 }
