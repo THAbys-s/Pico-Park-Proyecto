@@ -1,4 +1,4 @@
-export const PUERTO_DEL_SERVIDOR = 3000;
+export const PUERTO_DEL_SERVIDOR = 1089;
 export const IP_PLACEHOLDER = "";
 export const TIPO_CONEXION_GAMEPAD = "gamepad";
 export const TIPO_TRANSPORTE_WEBSOCKET = "websocket";

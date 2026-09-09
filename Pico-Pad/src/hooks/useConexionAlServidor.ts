@@ -4,6 +4,7 @@ import {
   IP_PLACEHOLDER,
   TIPO_CONEXION_GAMEPAD,
   TIPO_TRANSPORTE_WEBSOCKET,
+  PUERTO_DEL_SERVIDOR
 } from "../constantes/parametrosdeRed";
 import { EstadoDeConexion, EstadoJugador } from "../tipos";
 
@@ -71,7 +72,7 @@ const useConexionAlServidor = () => {
       desconectarSocketActual();
       setEstadoDeConexion("Conectando...");
 
-      const socketNuevo = io(`http://${ipDestino}`, {
+      const socketNuevo = io(`http://${ipDestino}:${PUERTO_DEL_SERVIDOR}`, {
         transports: [TIPO_TRANSPORTE_WEBSOCKET],
         query: { tipo: TIPO_CONEXION_GAMEPAD },
       });
