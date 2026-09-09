@@ -80,7 +80,7 @@
 
           const data = await response.json();
 
-          const url = `http://${data.ip}:3000`;
+          const url = `http://${data.ip}:${data.port}`;
 
           document.getElementById("ipTexto").innerText =
             `Conectate a: ${url}`;

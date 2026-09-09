@@ -3,8 +3,9 @@ services:
   pico-game:
     build: ./Pico-Game
     container_name: pico-game
-    network_mode: host   # descomentar en Linux para que los gamepads
-                            # encuentren la IP LAN real de tu PC
     ports:
-      - "2000:2000"        # usar esto solo si NO usás network_mode: host
+      - "1089:3000"
+    enviroment:
+      PUBLIC_IP: "10.56.31.31"
+      PUBLIC_PORT: "1089"
     restart: unless-stopped
