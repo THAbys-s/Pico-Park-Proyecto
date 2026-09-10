@@ -23,10 +23,17 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.anonymous.GamePad",
-      "permissions": ["android.permission.CAMERA"]
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "311a0d84-e610-4219-80b1-584c405fdeda"
+      }
     }
   }
 }
