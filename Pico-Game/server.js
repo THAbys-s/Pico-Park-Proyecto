@@ -48,10 +48,11 @@ function obtenerIPLocal() {
   return "localhost";
 }
 
-const ip = obtenerIPLocal();
+const ip = process.env.PUBLIC_IP || obtenerIPLocal();
+const publicPort = process.env.PUBLIC_PORT || PUERTO;
 
 app.get("/ip", (req, res) => {
-  res.json({ ip });
+  res.json({ ip, port: publicPort });
 });
 
 function emitirAPantallas(evento, data) {

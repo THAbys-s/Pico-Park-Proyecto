@@ -1,0 +1,11 @@
+
+services:
+  pico-game:
+    build: ./Pico-Game
+    container_name: pico-game
+    ports:
+      - "1089:3000"
+    environment:
+      PUBLIC_IP: "10.56.31.31"
+      PUBLIC_PORT: "1089"
+    restart: unless-stopped
